@@ -191,3 +191,192 @@ h1 {
   color: var(--text-muted);
   line-height: 1.6;
 }
+
+[hidden] {
+  display: none !important;
+}
+
+.tabs {
+  display: inline-flex;
+  margin-top: 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px;
+}
+
+.tab {
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 6px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.tab.active {
+  background: var(--primary);
+  color: white;
+}
+
+.pick-artist {
+  font-size: 0.85rem;
+  color: var(--text);
+  margin: -4px 0 10px;
+}
+
+.drawer {
+  margin-top: 12px;
+}
+
+.drawer-head {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.sync-status {
+  margin-top: 4px;
+  font-size: 0.75rem;
+}
+
+.sync-status.is-error {
+  color: var(--primary-dark);
+  font-weight: 700;
+}
+
+.sock-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+/* Owned vs missing is carried by the badge text, border style and image fade, never by hue alone. */
+.sock-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  text-align: center;
+  background: var(--card);
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  padding: 8px 8px 10px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.sock-tile:disabled {
+  cursor: default;
+}
+
+.sock-img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--bg);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sock-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.sock-badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: white;
+  background: var(--accent);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.sock-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.sock-artist {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.sock-tile.is-missing {
+  border-style: dashed;
+  border-color: var(--text-muted);
+  background: transparent;
+}
+
+.sock-tile.is-missing .sock-img img {
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+
+.sock-tile.is-missing .sock-badge {
+  background: none;
+  color: var(--text-muted);
+  border: 1px dashed var(--text-muted);
+}
+
+.sync-settings {
+  margin-top: 24px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.sync-settings summary {
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.sync-settings p {
+  margin: 8px 0;
+  line-height: 1.5;
+}
+
+.token-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.token-row input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.token-row button {
+  font: inherit;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  background: var(--primary);
+  color: white;
+  cursor: pointer;
+}
+
+.token-row button.secondary {
+  background: none;
+  color: var(--primary-dark);
+  border: 1px solid var(--border);
+}

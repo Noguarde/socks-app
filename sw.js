@@ -1,4 +1,4 @@
-const CACHE = 'socks-app-v1';
+const CACHE = 'socks-app-v2';
 const ASSETS = ['.', 'index.html', 'style.css', 'app.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -19,7 +19,7 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-  // Never cache the live sheet fetch or hotlinked sock images — always go to network.
+  // Never cache the live store/GitHub fetches or hotlinked sock images — always go to network.
   if (url.origin !== self.location.origin) return;
 
   e.respondWith(
