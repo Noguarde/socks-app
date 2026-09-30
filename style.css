@@ -271,10 +271,6 @@ h1 {
   color: var(--text);
 }
 
-.sock-tile:disabled {
-  cursor: default;
-}
-
 .sock-img {
   display: block;
   width: 100%;

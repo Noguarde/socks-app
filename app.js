@@ -2,9 +2,12 @@
 // (Shopify sends Access-Control-Allow-Origin: *, so this works straight from github.io).
 const CATALOG_URL = 'https://good.store/pages/awesome-socks-past-designs';
 
-// Ownership: which designs are still in the drawer. Lives in owned.json on the repo's `data`
-// branch so every device shares it; reads are anonymous, writes need a fine-grained token
-// (Contents: read/write on this repo only) pasted into the app once per device.
+// Ownership: which designs are still in the drawer. Everyone reads the same baseline from
+// owned.json on the repo's `data` branch (anonymous, no token). Only the site owner's device(s)
+// write back to it, via a fine-grained token (Contents: read/write on this repo only) — that's
+// what makes it "sync across devices" rather than "everyone editing the same shared list."
+// Anyone else marking socks owned/missing edits a device-local copy instead (sock_owned_local
+// below), so installers can track their own drawer without touching this repo at all.
 const REPO = 'Noguarde/socks-app';
 const OWNED_PATH = 'owned.json';
 const OWNED_BRANCH = 'data';
@@ -12,6 +15,7 @@ const OWNED_API = `https://api.github.com/repos/${REPO}/contents/${OWNED_PATH}`;
 
 const CATALOG_CACHE_KEY = 'sock_catalog_cache';
 const OWNED_CACHE_KEY = 'sock_owned_cache';
+const LOCAL_OWNED_KEY = 'sock_owned_local';
 const TOKEN_KEY = 'sock_gh_token';
 const HISTORY_KEY = 'sock_history'; // { 'YYYY-MM-DD': pairId }
 const REPEAT_COOLDOWN_DAYS = 14;
@@ -33,6 +37,7 @@ const state = {
   owned: { startMonth: '2023-08', owned: {} },
   ownedSha: null,
   ownedOffline: false,
+  localOverrides: {},   // monthKey -> bool, this device's own edits when there's no write token
   pending: {},          // monthKey -> bool, edits not yet written to GitHub
   saveTimer: null,
   saveStatus: '',       // '', 'saving', 'saved', 'error: ...'
@@ -157,21 +162,35 @@ async function loadOwned() {
 }
 
 // A design with no explicit entry defaults to owned if it arrived on/after the subscription
-// started, so each new month joins the rotation without any tapping.
+// started, so each new month joins the rotation without any tapping. Devices without a write
+// token check their own local overrides first, so they can diverge from the shared baseline
+// (their drawer, their missing socks) without ever touching owned.json.
 function isOwned(pair) {
   if (pair.monthKey in state.pending) return state.pending[pair.monthKey];
+  if (!getToken() && pair.monthKey in state.localOverrides) return state.localOverrides[pair.monthKey];
   const explicit = state.owned.owned?.[pair.monthKey];
   if (typeof explicit === 'boolean') return explicit;
   return pair.monthKey >= state.owned.startMonth;
 }
 
+function loadLocalOverrides() {
+  try { return JSON.parse(localStorage.getItem(LOCAL_OWNED_KEY) || '{}'); }
+  catch { return {}; }
+}
+
 function setOwned(monthKey, value) {
-  state.pending[monthKey] = value;
-  state.saveStatus = '';
-  cacheOwnedLocally();
-  renderSyncStatus();
-  clearTimeout(state.saveTimer);
-  state.saveTimer = setTimeout(saveOwned, SAVE_DEBOUNCE_MS);
+  if (getToken()) {
+    state.pending[monthKey] = value;
+    state.saveStatus = '';
+    cacheOwnedLocally();
+    renderSyncStatus();
+    clearTimeout(state.saveTimer);
+    state.saveTimer = setTimeout(saveOwned, SAVE_DEBOUNCE_MS);
+  } else {
+    state.localOverrides[monthKey] = value;
+    localStorage.setItem(LOCAL_OWNED_KEY, JSON.stringify(state.localOverrides));
+    renderSyncStatus();
+  }
 }
 
 function cacheOwnedLocally() {
@@ -414,7 +433,7 @@ function renderDrawer() {
         const future = p.date > today;
         return `
           <button class="sock-tile${owned ? ' is-owned' : ' is-missing'}" data-month="${p.monthKey}"
-                  aria-pressed="${owned}" ${hasToken ? '' : 'disabled'}>
+                  aria-pressed="${owned}">
             <span class="sock-img"><img src="${escapeHtml(thumb(p.image))}" alt="" loading="lazy"></span>
             <span class="sock-badge">${owned ? '✓ Owned' : 'Missing'}</span>
             <span class="sock-label">${escapeHtml(monthLabel(p))}${future ? ' · upcoming' : ''}</span>
@@ -422,13 +441,15 @@ function renderDrawer() {
           </button>`;
       }).join('')}
     </div>
-    <details class="sync-settings"${hasToken ? '' : ' open'}>
-      <summary>Sync settings</summary>
-      <p>Changes save to <code>${OWNED_PATH}</code> on the <code>${OWNED_BRANCH}</code> branch of
-         ${REPO}, so every device shares one list. To edit from this device, paste a
-         fine-grained GitHub token with <em>Contents: read and write</em> on that repo only.</p>
+    <details class="sync-settings">
+      <summary>Sync across your own devices</summary>
+      <p>Marking socks above saves to this device only. If this repo is yours and you want
+         those picks to follow you across your own phone/tablet/etc., paste a fine-grained
+         GitHub token with <em>Contents: read and write</em> on <code>${REPO}</code> only —
+         it'll write to <code>${OWNED_PATH}</code> on the <code>${OWNED_BRANCH}</code> branch
+         instead of just this browser. Everyone else should leave this blank.</p>
       <div class="token-row">
-        <input id="tokenInput" type="password" autocomplete="off" placeholder="${hasToken ? 'Token saved on this device' : 'github_pat_…'}">
+        <input id="tokenInput" type="password" autocomplete="off" placeholder="${hasToken ? 'Token saved on this device' : 'github_pat_… (owner only)'}">
         <button id="tokenSave">Save</button>
         ${hasToken ? '<button id="tokenClear" class="secondary">Remove</button>' : ''}
       </div>
@@ -471,7 +492,9 @@ function renderSyncStatus() {
   const s = state.saveStatus;
   el.className = 'sync-status';
   if (!getToken()) {
-    el.textContent = 'View only on this device — add a token below to edit.';
+    el.textContent = Object.keys(state.localOverrides).length
+      ? 'Saved on this device only.'
+      : 'Tracking your own list on this device.';
   } else if (s.startsWith('error')) {
     el.textContent = `Not saved (${s.slice(7)}). Tap a pair again to retry.`;
     el.classList.add('is-error');
@@ -507,6 +530,7 @@ async function init() {
     weekday: 'long', month: 'long', day: 'numeric'
   });
   tabButtons.forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
+  state.localOverrides = loadLocalOverrides();
 
   try {
     const [{ catalog, offline }] = await Promise.all([loadCatalog(), refreshOwned()]);
